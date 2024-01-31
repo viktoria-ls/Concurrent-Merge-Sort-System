@@ -1,14 +1,21 @@
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-public class Main {
+public class TestMain {
     static final int SEED = 123;
     public static void main(String[] args) {
         // Seed your randomizer
@@ -24,11 +31,6 @@ public class Main {
         Integer THREAD_COUNT = sc.nextInt();
         sc.close();
 
-        if(THREAD_COUNT > N)
-            THREAD_COUNT = N;
-
-        int numPerThread = N/THREAD_COUNT;
-
         // Generate a random array of given size
         ArrayList<Integer> shuffledList = new ArrayList<>();
         for (int i = 1; i <= N; i++) {
@@ -36,48 +38,39 @@ public class Main {
         }
 
         Collections.shuffle(shuffledList, random);
-
-        ArrayList<ArrayList<Integer>> partitionedList = new ArrayList<>();
-        int start = 0;
-        int end = start + numPerThread;
-
-        
-        for(int i = 0;i < THREAD_COUNT;i++) {
-            partitionedList.add(new ArrayList<Integer>());
-            if(i == THREAD_COUNT - 1) {
-                end = N;
-            }
-            for(int x = start; x < end;x++) {
-                partitionedList.get(partitionedList.size()-1).add(shuffledList.get(x));
-            }
-            start = end;
-            end = start + numPerThread;
+        int[] shuffledArr = new int[N];
+        for (int i = 0; i < N; i++) {
+            shuffledArr[i] = shuffledList.get(i);
         }
 
-        ArrayList<int[]> pSA = new ArrayList<>(); //pSA = Partitioned Shuffled Array
-
-        
-
-        for(ArrayList<Integer> a : partitionedList) {
-            pSA.add(new int[a.size()]);
-            int counter = 0;
-            for(Integer i : a) {
-                pSA.get(pSA.size()-1)[counter] = i;
-                counter++;
-            }
-        }
-
-        ArrayList<List<Interval>> intervalLists = new ArrayList<>();
-
-        for(int[] a : pSA) {
-            intervalLists.add(generate_intervals(0, a.length - 1));
-        }
 
         long startTime = System.currentTimeMillis();
+        List<Interval> intervals = generate_intervals(0, N - 1);
+        HashMap<Interval, Future> runnableList = new HashMap<>();
         ExecutorService test = Executors.newFixedThreadPool(THREAD_COUNT);
-        for(int i = 0;i < intervalLists.size();i++) {
-            MergeRunnable temp = new MergeRunnable(intervalLists.get(i), pSA.get(i));
-            test.execute(temp);
+
+        for(Interval i: intervals) {
+            MergeRunnable temp = new MergeRunnable(i, shuffledArr);
+
+            if(i.getStart() == i.getEnd()) {
+                runnableList.put(i, test.submit(temp));
+            }
+            else {
+                int m = i.getStart() + (i.getEnd() - i.getStart()) / 2;
+                int leftStart = i.getStart();
+                int leftEnd = m;
+
+                int rightStart = m + 1;
+                int rightEnd = i.getEnd();
+
+                List<Future> tempChildren = new ArrayList<>();
+
+                tempChildren.add(runnableList.get(new Interval(leftStart, leftEnd)));
+                tempChildren.add(runnableList.get(new Interval(rightStart, rightEnd)));
+                temp = new MergeRunnable(i, shuffledArr, tempChildren);
+
+                runnableList.put(i, test.submit(temp));
+            }
         }
 
         test.shutdown();
@@ -89,19 +82,12 @@ public class Main {
             e.printStackTrace();
         }
 
-        int[] finalArray = pSA.get(0); //Get first array in pSA
-
-        for(int i = 1; i < pSA.size();i++) {
-            finalArray = mergeArrays(finalArray, pSA.get(i));
-        }    
-
-        for(int i : finalArray) {
-            System.out.println(i);
-        }
+        // for(int i : shuffledArr) {
+        //     System.out.println(i);
+        // }
         long endTime = System.currentTimeMillis();
         long totalTime = endTime - startTime;
         System.out.print("TOTAL TIME: " + totalTime + " milliseconds");
-
     }
 
 
@@ -157,7 +143,6 @@ public class Main {
     e     : int         - end index (inclusive) of merge
     */
     public static void merge(int[] array, int s, int e) {
-        
         int m = s + (e - s) / 2;
         int[] left = new int[m - s + 1];
         int[] right = new int[e - m];
@@ -186,43 +171,6 @@ public class Main {
                 r_ptr++;
             }
         }
-    }
-
-    public static int[] mergeArrays(int[] left, int[] right) {
-        int[] array = new int[left.length + right.length];
-
-        int s = 0;
-        int e = ((right.length + left.length) - 1);
-        /*
-         * s = 0
-         * e = 9
-         * 
-         * left[5]
-         * right[5]
-         * 
-         * 
-         */
-        int m = left.length - 1;
-        int l_ptr = 0, r_ptr = 0;
-
-
-        for(int i = s; i <= e; i++) {
-            // no more elements on left half
-            if(l_ptr == m - s + 1) {
-                array[i] = right[r_ptr];
-                r_ptr++;
-
-            // no more elements on right half or left element comes first
-            } else if(r_ptr == e - m || left[l_ptr] <= right[r_ptr]) {
-                array[i] = left[l_ptr];
-                l_ptr++;
-            } else {
-                array[i] = right[r_ptr];
-                r_ptr++;
-            }
-        }
-
-        return array;
     }
 }
 
@@ -264,19 +212,37 @@ class Interval {
 }
 
 class MergeRunnable implements Runnable {
-    List<Interval> givenIntervals;
+    Interval givenInterval;
     int[] arrayToBeSorted;
+    List<Future> dependencies = null;
 
-    MergeRunnable(List<Interval> i, int[] a) {
-        this.givenIntervals = i;
+    MergeRunnable(Interval i, int[] a) {
+        this.givenInterval = i;
         this.arrayToBeSorted= a;
+    }
+
+    MergeRunnable(Interval i, int[] a, List<Future> dependencies) {
+        this.givenInterval = i;
+        this.arrayToBeSorted= a;
+        this.dependencies = dependencies;
     }
 
     @Override
     public void run() {
-        for(Interval i : givenIntervals) {
-            merge(arrayToBeSorted, i.getStart(), i.getEnd());
+        if(dependencies != null) {
+            for(Future d : dependencies) {
+                try {
+                    d.get();
+                } catch (InterruptedException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                } catch (ExecutionException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+            }
         }
+        merge(arrayToBeSorted, givenInterval.getStart(), givenInterval.getEnd());
     }
 
     public static void merge(int[] array, int s, int e) {

@@ -1,3 +1,3 @@
-for(int i : shuffledArr) {
-        //     System.out.println(i);
-        // }
+for(int i : finalArray) {
+            System.out.println(i);
+        }
