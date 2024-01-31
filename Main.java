@@ -1,12 +1,18 @@
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 
 public class Main {
     static final int SEED = 123;
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException, ExecutionException {
         // Seed your randomizer
         Random random = new Random(SEED);
 
@@ -32,13 +38,73 @@ public class Main {
             shuffledArr[i] = shuffledList.get(i);
         }
 
-        // TODO: Call the generate_intervals method to generate the merge 
-        // sequence
+        // Call the generate_intervals method to generate the merge sequence
+        List<Interval> intervals = generate_intervals(0, N - 1);
 
-        // TODO: Call merge on each interval in sequence
+        // Call merge on each interval in sequence
+        // for(Interval i : intervals) {
+        //     merge(shuffledArr, i.getStart(), i.getEnd());
+        // }
 
         // Once you get the single-threaded version to work, it's time to 
         // implement the concurrent version. Good luck :)
+
+        // map of interval and whether its done or not
+        HashMap<Interval, Boolean> intervalMap = new HashMap<>();
+        for (Interval i : intervals) {
+            intervalMap.put(i, false);
+        }
+
+        ExecutorService es = Executors.newFixedThreadPool(THREAD_COUNT);
+        ReadWriteLock lock = new ReentrantReadWriteLock();
+
+        long startTime = System.currentTimeMillis();
+
+        while(!intervals.isEmpty()) {
+            lock.writeLock().lock();
+            Interval i = intervals.remove(0);
+            // if interval with size 1 or no dependency, assign to first available thread
+            if(i.getStart() == i.getEnd()) {
+                MergeRunnable mr = new MergeRunnable(i.getStart(), i.getEnd(), shuffledArr, intervalMap);
+                es.execute(mr);
+                // while(res.get() != true) {continue;}
+                // intervalMap.put(i, true);
+            }
+            // if not ready, check if direct dependencies are done
+            else {
+                int leftStart = i.getStart();
+                int leftEnd = i.getStart() + (i.getEnd() - i.getStart()) / 2;
+
+                int rightStart = leftEnd + 1;
+                int rightEnd = i.getEnd();
+
+                // if direct dependencies are done, assign this interval to a thread
+                if(intervalMap.get(new Interval(rightStart, rightEnd)) == true && intervalMap.get(new Interval(leftStart, leftEnd)) == true) {
+                    MergeRunnable mr = new MergeRunnable(i.getStart(), i.getEnd(), shuffledArr, intervalMap);
+                    es.execute(mr);
+                    // Future<Boolean> res = es.submit(mr, true);
+                    // while(res.get() != true) {continue;}
+                    // intervalMap.put(i, true);
+                }
+                // otherwise add this interval back to the queue
+                else {
+                    intervals.add(i);
+                }
+            }
+            lock.writeLock().unlock();
+        }
+
+        long endTime = System.currentTimeMillis();
+        long totalTime = endTime - startTime;
+        System.out.print("TOTAL TIME: " + totalTime + " milliseconds");
+
+        es.shutdown();
+
+        System.out.println("DONE");
+
+        // for(int i = 0; i < N; i++) {
+        //     System.out.println(shuffledArr[i]);
+        // }
     }
 
     /*
@@ -120,31 +186,5 @@ public class Main {
                 r_ptr++;
             }
         }
-    }
-}
-
-class Interval {
-    private int start;
-    private int end;
-
-    public Interval(int start, int end) {
-        this.start = start;
-        this.end = end;
-    }
-
-    public int getStart() {
-        return start;
-    }
-
-    public void setStart(int start) {
-        this.start = start;
-    }
-
-    public int getEnd() {
-        return end;
-    }
-
-    public void setEnd(int end) {
-        this.end = end;
     }
 }

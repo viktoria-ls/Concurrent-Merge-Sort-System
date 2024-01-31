@@ -1,0 +1,56 @@
+create THREAD_COUNT threads or N threads, whatever is smaller
+if intervalList not empty
+    for every thread
+        if not in run()
+            lock intervalList
+            bool ok = false
+            i = 0
+            while !ok and i < intervalList.size:
+                if intervalList.get(i).start != intervalList.get(i).end
+                    for t in threadList
+                        if t.start == intervalList.get(i).start || t.end == intervalList.get(i).end
+                            i++
+                            break
+            if !ok and i == intervalList.size: // not sure if this case will happen
+
+            thread.setInterval(intervalList.get(i))
+            thread.run()
+            intervalList.pop(i)
+            ok = true
+            unlock intervalList
+
+
+if this works, could sort intervalList by size of interval
+
+
+another approach
+
+create minimum threads
+create dictionary of intervals : bool
+
+run()
+
+
+-------
+0 - 7
+[0, 3] [4, 7]
+
+0 - 8
+[0, 4] [5, 8]
+
+3 - 4
+[3, 3] [4, 4]
+
+5 - 6
+[5, 5] [6, 6]
+
+5 - 9
+[5, 7] [8, 9]
+
+
+-----
+need to do it with runnable
+-------
+
+make a runnable per thread
+update runnable when new run
