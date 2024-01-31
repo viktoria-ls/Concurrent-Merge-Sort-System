@@ -27,7 +27,7 @@ public class Main {
         if(THREAD_COUNT > N)
             THREAD_COUNT = N;
 
-        int numPerThread = N/THREAD_COUNT;
+        int numPerThread = (int) Math.ceil((double) N/THREAD_COUNT);
 
         // Generate a random array of given size
         ArrayList<Integer> shuffledList = new ArrayList<>();
@@ -95,9 +95,9 @@ public class Main {
             finalArray = mergeArrays(finalArray, pSA.get(i));
         }    
 
-        for(int i : finalArray) {
-            System.out.println(i);
-        }
+        // for(int i : finalArray) {
+        //     System.out.println(i);
+        // }
         long endTime = System.currentTimeMillis();
         long totalTime = endTime - startTime;
         System.out.print("TOTAL TIME: " + totalTime + " milliseconds");
@@ -310,89 +310,3 @@ class MergeRunnable implements Runnable {
         }
     }    
 }
-
-// class MergeThread extends Thread {
-//     List<Interval> intervals;
-//     List<Interval> finishedIntervals;
-//     Interval threadInterval;
-//     Integer threadCount;
-//     ReentrantLock writeLock;
-//     int[] arrayToBeSorted;
-
-//     MergeThread(Interval i, int[] arrayToBeSorted, Integer THREAD_COUNT, ReentrantLock writeLock) {
-//         this.threadInterval = i;
-//         this.arrayToBeSorted = arrayToBeSorted;
-//         this.threadCount = THREAD_COUNT;
-//         this.writeLock = writeLock;
-//     }
-
-//     public void run() {
-//         merge(arrayToBeSorted, threadInterval.getStart(), threadInterval.getEnd());
-//         threadCount--;
-//     }
-
-//     public static void merge(int[] array, int s, int e) {
-//         //s = 0 e = 2
-//         int m = s + (e - s) / 2;
-//         //m = 1 | left[2] right[1]
-//         int[] left = new int[m - s + 1];
-//         int[] right = new int[e - m];
-//         int l_ptr = 0, r_ptr = 0;
-//         for(int i = s; i <= e; i++) {
-//             if(i <= m) {
-//                 left[l_ptr++] = array[i];
-//             } else {
-//                 right[r_ptr++] = array[i];
-//             }
-//         }
-//         l_ptr = r_ptr = 0;
-
-//         for(int i = s; i <= e; i++) {
-//             // no more elements on left half
-//             if(l_ptr == m - s + 1) {
-//                 array[i] = right[r_ptr];
-//                 r_ptr++;
-
-//             // no more elements on right half or left element comes first
-//             } else if(r_ptr == e - m || left[l_ptr] <= right[r_ptr]) {
-//                 array[i] = left[l_ptr];
-//                 l_ptr++;
-//             } else {
-//                 array[i] = right[r_ptr];
-//                 r_ptr++;
-//             }
-//         }
-//     }
-// }
-
-
-// for(int i = 0;i < THREAD_COUNT;i++) {
-//     List<Interval> tempIntervals;
-//     if(i == THREAD_COUNT - 1) {
-//         tempEnd = N - 1;
-//     }
-//     else {
-//         tempEnd = tempStart + spaceBetween;
-//     }
-
-//     tempIntervals = generate_intervals(tempStart, tempEnd);
-
-//     tempStart = tempEnd + 1;
-        
-//     listOfThreads.add(new MergeThread(tempIntervals, finishedIntervals, shuffledArr));
-//     listOfThreads.get(listOfThreads.size()-1).start();
-// }
-
-
-// for(MergeThread t : listOfThreads) {
-//     try {
-//         t.join();
-//     } catch (InterruptedException e) {
-//         // TODO Auto-generated catch block
-//         e.printStackTrace();
-//     }
-// }
-
-// for(int i = intervalList.size() - (intervalList.size() - finishedIntervals.size());i < intervalList.size();i++) {
-//     merge(shuffledArr, intervalList.get(i).getStart(), intervalList.get(i).getEnd());
-// }
