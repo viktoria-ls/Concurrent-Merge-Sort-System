@@ -54,12 +54,15 @@ public class Main {
 
         long startTime = System.currentTimeMillis();
 
+        int iCount = 0;
         while(!intervals.isEmpty()) {
-            Interval i = intervals.remove(0);
+            Interval i = intervals.get(iCount);
             // if interval with size 1 or no dependency, assign to first available thread
             if(i.getStart() == i.getEnd()) {
                 MergeRunnable mr = new MergeRunnable(i.getStart(), i.getEnd(), shuffledArr, intervalMap);
                 es.execute(mr);
+                intervals.remove(iCount);
+                iCount = 0;
             }
             // if not ready, check if direct dependencies are done
             else {
@@ -73,25 +76,29 @@ public class Main {
                 if(intervalMap.get(new Interval(rightStart, rightEnd)) == true && intervalMap.get(new Interval(leftStart, leftEnd)) == true) {
                     MergeRunnable mr = new MergeRunnable(i.getStart(), i.getEnd(), shuffledArr, intervalMap);
                     es.execute(mr);
+                    intervals.remove(iCount);
+                    iCount = 0;
                 }
                 // otherwise add this interval back to the queue
                 else {
-                    intervals.add(i);
+                    if (iCount < intervals.size() - 1)
+                        iCount++;
+                    else 
+                        iCount = 0;
                 }
             }
         }
 
         long endTime = System.currentTimeMillis();
         long totalTime = endTime - startTime;
-        System.out.print("TOTAL TIME: " + totalTime + " milliseconds");
 
         es.shutdown();
-
-        System.out.println("DONE");
 
         // for(int i = 0; i < N; i++) {
         //     System.out.println(shuffledArr[i]);
         // }
+
+        System.out.println("TOTAL TIME: " + totalTime + " milliseconds");
     }
 
     /*
