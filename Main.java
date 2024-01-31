@@ -4,8 +4,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -46,9 +44,6 @@ public class Main {
         //     merge(shuffledArr, i.getStart(), i.getEnd());
         // }
 
-        // Once you get the single-threaded version to work, it's time to 
-        // implement the concurrent version. Good luck :)
-
         // map of interval and whether its done or not
         HashMap<Interval, Boolean> intervalMap = new HashMap<>();
         for (Interval i : intervals) {
@@ -56,19 +51,15 @@ public class Main {
         }
 
         ExecutorService es = Executors.newFixedThreadPool(THREAD_COUNT);
-        ReadWriteLock lock = new ReentrantReadWriteLock();
 
         long startTime = System.currentTimeMillis();
 
         while(!intervals.isEmpty()) {
-            lock.writeLock().lock();
             Interval i = intervals.remove(0);
             // if interval with size 1 or no dependency, assign to first available thread
             if(i.getStart() == i.getEnd()) {
                 MergeRunnable mr = new MergeRunnable(i.getStart(), i.getEnd(), shuffledArr, intervalMap);
                 es.execute(mr);
-                // while(res.get() != true) {continue;}
-                // intervalMap.put(i, true);
             }
             // if not ready, check if direct dependencies are done
             else {
@@ -82,16 +73,12 @@ public class Main {
                 if(intervalMap.get(new Interval(rightStart, rightEnd)) == true && intervalMap.get(new Interval(leftStart, leftEnd)) == true) {
                     MergeRunnable mr = new MergeRunnable(i.getStart(), i.getEnd(), shuffledArr, intervalMap);
                     es.execute(mr);
-                    // Future<Boolean> res = es.submit(mr, true);
-                    // while(res.get() != true) {continue;}
-                    // intervalMap.put(i, true);
                 }
                 // otherwise add this interval back to the queue
                 else {
                     intervals.add(i);
                 }
             }
-            lock.writeLock().unlock();
         }
 
         long endTime = System.currentTimeMillis();
