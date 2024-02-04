@@ -54,9 +54,8 @@ public class Main {
             end = start + numPerThread;
         }
 
-        ArrayList<int[]> pSA = new ArrayList<>(); //pSA = Partitioned Shuffled Array
-
-        
+        //pSA = Partitioned Shuffled Array
+        ArrayList<int[]> pSA = new ArrayList<>();
 
         for(ArrayList<Integer> a : partitionedList) {
             pSA.add(new int[a.size()]);
@@ -85,19 +84,16 @@ public class Main {
         try {
             test.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
 
-        int[] finalArray = pSA.get(0); //Get first array in pSA
+        //Get first array in pSA
+        int[] finalArray = pSA.get(0); 
 
         for(int i = 1; i < pSA.size();i++) {
             finalArray = mergeArrays(finalArray, pSA.get(i));
         }    
 
-        // for(int i : finalArray) {
-        //     System.out.println(i);
-        // }
         long endTime = System.currentTimeMillis();
         long totalTime = endTime - startTime;
         System.out.print("TOTAL TIME: " + totalTime + " milliseconds");
@@ -131,7 +127,6 @@ public class Main {
             if(s == e){
                 continue;
             }
-            // s = 4 and e = 5 -> 4 + (5 - 4) / 2
             // compute midpoint
             int m = s + (e - s) / 2;
 
@@ -188,20 +183,12 @@ public class Main {
         }
     }
 
+    // Merges two arrays without their upper and lower bounds stated
     public static int[] mergeArrays(int[] left, int[] right) {
         int[] array = new int[left.length + right.length];
 
         int s = 0;
         int e = ((right.length + left.length) - 1);
-        /*
-         * s = 0
-         * e = 9
-         * 
-         * left[5]
-         * right[5]
-         * 
-         * 
-         */
         int m = left.length - 1;
         int l_ptr = 0, r_ptr = 0;
 
@@ -225,6 +212,7 @@ public class Main {
         return array;
     }
 }
+
 
 class Interval {
     private int start;
@@ -263,6 +251,8 @@ class Interval {
     }
 }
 
+
+// Runnable that merges a set of intervals
 class MergeRunnable implements Runnable {
     List<Interval> givenIntervals;
     int[] arrayToBeSorted;
@@ -275,38 +265,7 @@ class MergeRunnable implements Runnable {
     @Override
     public void run() {
         for(Interval i : givenIntervals) {
-            merge(arrayToBeSorted, i.getStart(), i.getEnd());
+            Main.merge(arrayToBeSorted, i.getStart(), i.getEnd());
         }
     }
-
-    public static void merge(int[] array, int s, int e) {
-        int m = s + (e - s) / 2;
-        int[] left = new int[m - s + 1];
-        int[] right = new int[e - m];
-        int l_ptr = 0, r_ptr = 0;
-        for(int i = s; i <= e; i++) {
-            if(i <= m) {
-                left[l_ptr++] = array[i];
-            } else {
-                right[r_ptr++] = array[i];
-            }
-        }
-        l_ptr = r_ptr = 0;
-
-        for(int i = s; i <= e; i++) {
-            // no more elements on left half
-            if(l_ptr == m - s + 1) {
-                array[i] = right[r_ptr];
-                r_ptr++;
-
-            // no more elements on right half or left element comes first
-            } else if(r_ptr == e - m || left[l_ptr] <= right[r_ptr]) {
-                array[i] = left[l_ptr];
-                l_ptr++;
-            } else {
-                array[i] = right[r_ptr];
-                r_ptr++;
-            }
-        }
-    }    
 }
